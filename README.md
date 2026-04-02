@@ -16,7 +16,7 @@ This is especially useful when consolidating duplicate or near-duplicate notes w
 ## How to Install (Beta)
 
 1. Install the **BRAT** plugin from the Obsidian Community Plugins store.
-2. Go to **Settings → Community plugins → BRAT**.
+2. Go to **Settings → Community plugins → BRAT** .
 3. Click **Add Beta plugin**.
 4. Paste the following repository URL: `https://github.com/quietbyday/obsidian-merge-as-alias`
 5. Click **Add Plugin**. 
