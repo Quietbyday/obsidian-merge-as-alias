@@ -43,6 +43,28 @@ Even when the separator option is disabled, merged content always starts on a ne
 3. Choose the target note you want to merge into.
 4. The plugin will handle the rest and open the target note when finished.
 
+## Changelog
+
+### 0.4.0-beta (Current)
+- Added Changelog
+
+### 0.3.0-beta
+- Added **"Confirm file merge"** setting in the options panel
+- The confirmation dialog now properly respects "Don't ask again"
+- Users can re-enable the confirmation dialog anytime from Settings
+- Improved safety before destructive merge operations
+
+### 0.2.0-beta
+- Added confirmation dialog before merging (similar to Obsidian's core merge behavior)
+- Minor UI and stability improvements
+
+### 0.1.0-beta
+- Initial beta release
+- Core merge functionality with alias creation
+- Automatic internal link updating
+- Configurable frontmatter merging
+- Settings panel
+
 ## License
 
 MIT License
