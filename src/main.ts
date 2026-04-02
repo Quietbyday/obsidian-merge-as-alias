@@ -6,6 +6,7 @@ interface MergeAsAliasSettings {
     mergeListFields: boolean;
     addSeparatorBeforeContent: boolean;
     contentSeparator: string;
+    showConfirmationDialog: boolean;   // ← New setting
 }
 
 const DEFAULT_SETTINGS: MergeAsAliasSettings = {
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: MergeAsAliasSettings = {
     mergeListFields: true,
     addSeparatorBeforeContent: true,
     contentSeparator: "\n\n---\n\n# Merged from: ",
+    showConfirmationDialog: true,      // ← New default (true = show dialog)
 };
 
 export default class MergeAsAliasPlugin extends Plugin {
@@ -58,7 +60,7 @@ export default class MergeAsAliasPlugin extends Plugin {
         this.addSettingTab(new MergeAsAliasSettingTab(this.app, this));
     }
 
-        async mergeAsAlias(sourceFile: TFile) {
+            async mergeAsAlias(sourceFile: TFile) {
         const targetFile = await this.chooseNoteModal();
 
         if (!targetFile) {
@@ -71,11 +73,13 @@ export default class MergeAsAliasPlugin extends Plugin {
             return;
         }
 
-        // Show confirmation dialog
-        const confirmed = await this.showMergeConfirmation(sourceFile, targetFile);
-        if (!confirmed) {
-            new Notice('Merge cancelled.');
-            return;
+        // Show confirmation only if the user hasn't disabled it
+        if (this.settings.showConfirmationDialog) {
+            const confirmed = await this.showMergeConfirmation(sourceFile, targetFile);
+            if (!confirmed) {
+                new Notice('Merge cancelled.');
+                return;
+            }
         }
 
         const alias = sourceFile.basename;
@@ -100,7 +104,7 @@ export default class MergeAsAliasPlugin extends Plugin {
             // 5. Delete source file
             await this.app.vault.delete(sourceFile);
 
-            // 6. Open the target note  ← This was missing / broken
+            // 6. Open the target note
             await this.app.workspace.getLeaf(false).openFile(targetFile);
 
             new Notice(`✅ Successfully merged "${alias}" as alias into "${mainName}"`, 5000);
@@ -115,7 +119,7 @@ export default class MergeAsAliasPlugin extends Plugin {
      */
     private showMergeConfirmation(sourceFile: TFile, targetFile: TFile): Promise<boolean> {
         return new Promise((resolve) => {
-            const modal = new MergeConfirmationModal(this.app, sourceFile, targetFile, resolve);
+            const modal = new MergeConfirmationModal(this.app, sourceFile, targetFile, resolve, this);
             modal.open();
         });
     }
@@ -211,38 +215,45 @@ export default class MergeAsAliasPlugin extends Plugin {
 }
 
 /**
- * Confirmation Modal (similar to core Obsidian merge dialog)
+ * Confirmation Modal with "Don't ask again" functionality
  */
 class MergeConfirmationModal extends Modal {
     private sourceFile: TFile;
     private targetFile: TFile;
     private resolve: (confirmed: boolean) => void;
+    private plugin: MergeAsAliasPlugin;
 
-    constructor(app: App, sourceFile: TFile, targetFile: TFile, resolve: (confirmed: boolean) => void) {
+    constructor(app: App, sourceFile: TFile, targetFile: TFile, resolve: (confirmed: boolean) => void, plugin: MergeAsAliasPlugin) {
         super(app);
         this.sourceFile = sourceFile;
         this.targetFile = targetFile;
         this.resolve = resolve;
+        this.plugin = plugin;
     }
 
     onOpen() {
         const { contentEl } = this;
 
-        contentEl.createEl('h2', { text: 'Merge file' });
+        contentEl.createEl('h2', { text: 'Confirm file merge' });
 
         contentEl.createEl('p', {
             text: `Are you sure you want to merge "${this.sourceFile.basename}" into "${this.targetFile.basename}"? "${this.sourceFile.basename}" will be deleted.`
         });
 
-        const checkboxContainer = contentEl.createDiv();
-        const dontAskCheckbox = checkboxContainer.createEl('input', { type: 'checkbox' });
+        // Checkbox
+        const checkboxContainer = contentEl.createDiv({ cls: 'setting-item' });
+        const checkbox = checkboxContainer.createEl('input', { type: 'checkbox' });
         const label = checkboxContainer.createEl('label', { text: " Don't ask again" });
-        label.prepend(dontAskCheckbox);
+        label.prepend(checkbox);
 
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
 
         const mergeButton = buttonContainer.createEl('button', { text: 'Merge', cls: 'mod-warning' });
-        mergeButton.addEventListener('click', () => {
+        mergeButton.addEventListener('click', async () => {
+            if (checkbox.checked) {
+                this.plugin.settings.showConfirmationDialog = false;
+                await this.plugin.saveSettings();
+            }
             this.resolve(true);
             this.close();
         });
@@ -255,7 +266,7 @@ class MergeConfirmationModal extends Modal {
     }
 
     onClose() {
-        this.resolve(false); // Default to cancel if closed without clicking
+        this.resolve(false);
     }
 }
 
@@ -300,7 +311,7 @@ class MergeAsAliasSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    display(): void {
+        display(): void {
         const { containerEl } = this;
         containerEl.empty();
 
@@ -353,6 +364,17 @@ class MergeAsAliasSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.contentSeparator)
                 .onChange(async (value) => {
                     this.plugin.settings.contentSeparator = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // New option - matching Obsidian core style
+        new Setting(containerEl)
+            .setName('Confirm file merge')
+            .setDesc('Prompt before merge two files.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.showConfirmationDialog)
+                .onChange(async (value) => {
+                    this.plugin.settings.showConfirmationDialog = value;
                     await this.plugin.saveSettings();
                 }));
     }
