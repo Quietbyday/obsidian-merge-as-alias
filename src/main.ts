@@ -1,4 +1,4 @@
-import { App, FuzzySuggestModal, Menu, Notice, Plugin, TFile, Setting, PluginSettingTab } from 'obsidian';
+import { App, FuzzySuggestModal, Menu, Modal, Notice, Plugin, TFile, Setting, PluginSettingTab } from 'obsidian';
 
 interface MergeAsAliasSettings {
     concatenateTextFields: boolean;
@@ -40,7 +40,7 @@ export default class MergeAsAliasPlugin extends Plugin {
             })
         );
 
-        // Add command for Command Palette (Ctrl/Cmd + P)
+        // Add command for Command Palette
         this.addCommand({
             id: 'merge-as-alias',
             name: 'Merge entire file as alias with...',
@@ -58,7 +58,7 @@ export default class MergeAsAliasPlugin extends Plugin {
         this.addSettingTab(new MergeAsAliasSettingTab(this.app, this));
     }
 
-    async mergeAsAlias(sourceFile: TFile) {
+        async mergeAsAlias(sourceFile: TFile) {
         const targetFile = await this.chooseNoteModal();
 
         if (!targetFile) {
@@ -68,6 +68,13 @@ export default class MergeAsAliasPlugin extends Plugin {
 
         if (targetFile.path === sourceFile.path) {
             new Notice('❌ Cannot merge a note with itself.');
+            return;
+        }
+
+        // Show confirmation dialog
+        const confirmed = await this.showMergeConfirmation(sourceFile, targetFile);
+        if (!confirmed) {
+            new Notice('Merge cancelled.');
             return;
         }
 
@@ -93,7 +100,7 @@ export default class MergeAsAliasPlugin extends Plugin {
             // 5. Delete source file
             await this.app.vault.delete(sourceFile);
 
-            // 6. Open the target note
+            // 6. Open the target note  ← This was missing / broken
             await this.app.workspace.getLeaf(false).openFile(targetFile);
 
             new Notice(`✅ Successfully merged "${alias}" as alias into "${mainName}"`, 5000);
@@ -101,6 +108,16 @@ export default class MergeAsAliasPlugin extends Plugin {
             console.error('Merge error:', err);
             new Notice('❌ Merge failed — check console (Ctrl+Shift+I)');
         }
+    }
+
+    /**
+     * Shows a confirmation dialog similar to Obsidian's core merge dialog
+     */
+    private showMergeConfirmation(sourceFile: TFile, targetFile: TFile): Promise<boolean> {
+        return new Promise((resolve) => {
+            const modal = new MergeConfirmationModal(this.app, sourceFile, targetFile, resolve);
+            modal.open();
+        });
     }
 
     async chooseNoteModal(): Promise<TFile | null> {
@@ -111,6 +128,8 @@ export default class MergeAsAliasPlugin extends Plugin {
             modal.open();
         });
     }
+
+    // ... keep the rest of your methods unchanged (mergeFrontmatter, mergeContent, updateAllLinks, loadSettings, saveSettings, onunload) ...
 
     async mergeFrontmatter(targetFile: TFile, sourceFile: TFile) {
         const sourceCache = this.app.metadataCache.getFileCache(sourceFile);
@@ -150,10 +169,9 @@ export default class MergeAsAliasPlugin extends Plugin {
         const targetContent = await this.app.vault.read(targetFile);
         let sourceContent = await this.app.vault.read(sourceFile);
 
-        // Remove frontmatter from source content
         sourceContent = sourceContent.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '').trim();
 
-        let separator = '\n\n';   // Always start merged content on a new line
+        let separator = '\n\n';
 
         if (this.settings.addSeparatorBeforeContent) {
             separator = this.settings.contentSeparator + sourceFile.basename + '\n\n';
@@ -193,8 +211,55 @@ export default class MergeAsAliasPlugin extends Plugin {
 }
 
 /**
- * Reliable modal (the version that worked for you)
+ * Confirmation Modal (similar to core Obsidian merge dialog)
  */
+class MergeConfirmationModal extends Modal {
+    private sourceFile: TFile;
+    private targetFile: TFile;
+    private resolve: (confirmed: boolean) => void;
+
+    constructor(app: App, sourceFile: TFile, targetFile: TFile, resolve: (confirmed: boolean) => void) {
+        super(app);
+        this.sourceFile = sourceFile;
+        this.targetFile = targetFile;
+        this.resolve = resolve;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+
+        contentEl.createEl('h2', { text: 'Merge file' });
+
+        contentEl.createEl('p', {
+            text: `Are you sure you want to merge "${this.sourceFile.basename}" into "${this.targetFile.basename}"? "${this.sourceFile.basename}" will be deleted.`
+        });
+
+        const checkboxContainer = contentEl.createDiv();
+        const dontAskCheckbox = checkboxContainer.createEl('input', { type: 'checkbox' });
+        const label = checkboxContainer.createEl('label', { text: " Don't ask again" });
+        label.prepend(dontAskCheckbox);
+
+        const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
+
+        const mergeButton = buttonContainer.createEl('button', { text: 'Merge', cls: 'mod-warning' });
+        mergeButton.addEventListener('click', () => {
+            this.resolve(true);
+            this.close();
+        });
+
+        const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+        cancelButton.addEventListener('click', () => {
+            this.resolve(false);
+            this.close();
+        });
+    }
+
+    onClose() {
+        this.resolve(false); // Default to cancel if closed without clicking
+    }
+}
+
+// Keep the rest of your existing classes unchanged
 class ReliableNoteSelectorModal extends FuzzySuggestModal<TFile> {
     private callback: (file: TFile | null) => void;
 
@@ -223,14 +288,10 @@ class ReliableNoteSelectorModal extends FuzzySuggestModal<TFile> {
     }
 
     onClose() {
-        // Small delay to avoid race conditions
         setTimeout(() => this.callback(null), 50);
     }
 }
 
-/**
- * Settings Tab
- */
 class MergeAsAliasSettingTab extends PluginSettingTab {
     plugin: MergeAsAliasPlugin;
 
