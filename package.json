@@ -1,6 +1,6 @@
 {
 	"name": "merge-as-alias",
-	"version": "0.4.1-beta",
+	"version": "0.4.2",
 	"description": "Merge one note into another while adding the old name as an alias and updating all internal links.",
 	"main": "main.js",
 	"type": "module",
