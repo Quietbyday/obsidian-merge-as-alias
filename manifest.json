@@ -1,10 +1,10 @@
 {
   "id": "merge-as-alias",
   "name": "Merge as Alias",
-  "version": "0.4.0-beta",
+  "version": "0.4.1-beta",
   "minAppVersion": "1.0.0",
   "description": "Merge one note into another while adding the old name as an alias and updating all internal links.",
-  "author": "Patrick Riley",
+  "author": "Quietbyday",
   "authorUrl": "https://github.com/quietbyday",
   "isDesktopOnly": false,
   "fundingUrl": "",
