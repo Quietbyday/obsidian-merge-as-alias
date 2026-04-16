@@ -45,7 +45,14 @@ Even when the separator option is disabled, merged content always starts on a ne
 
 ## Changelog
 
-### 0.4.0-beta (Current)
+### 0.5.0 (Current)
+- Resolved all issues flagged by the Obsidian community plugin validation bot
+- Fixed command ID to not duplicate the plugin ID
+- Replaced `vault.delete()` with `fileManager.trashFile()` to respect user trash preferences
+- Improved TypeScript type safety (removed `any` types)
+- UI text and notice strings now consistently use sentence case
+
+### 0.4.0-beta
 - Added Changelog
 
 ### 0.3.0-beta

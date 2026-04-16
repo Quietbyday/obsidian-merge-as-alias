@@ -38,6 +38,9 @@ yarn-error.log*
 *.sln
 *.sw?
 
+# Developer notes
+dev_notes/
+
 # Temporary files
 *.tmp
 *.temp

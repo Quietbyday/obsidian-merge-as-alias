@@ -1,7 +1,7 @@
 {
   "id": "merge-as-alias",
   "name": "Merge as Alias",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "minAppVersion": "1.0.0",
   "description": "Merge one note into another while adding the old name as an alias and updating all internal links.",
   "author": "Quietbyday",

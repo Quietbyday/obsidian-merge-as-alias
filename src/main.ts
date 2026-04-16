@@ -24,8 +24,6 @@ export default class MergeAsAliasPlugin extends Plugin {
     async onload() {
         await this.loadSettings();
 
-        console.log('✅ Merge as Alias plugin loaded successfully!');
-
         // Add to the three-dots menu
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu: Menu, file: TFile) => {
@@ -44,12 +42,12 @@ export default class MergeAsAliasPlugin extends Plugin {
 
         // Add command for Command Palette
         this.addCommand({
-            id: 'merge-as-alias',
+            id: 'merge-file',
             name: 'Merge entire file as alias with...',
             checkCallback: (checking: boolean) => {
                 const activeFile = this.app.workspace.getActiveFile();
                 if (activeFile?.extension === 'md') {
-                    if (!checking) this.mergeAsAlias(activeFile);
+                    if (!checking) void this.mergeAsAlias(activeFile);
                     return true;
                 }
                 return false;
@@ -64,12 +62,12 @@ export default class MergeAsAliasPlugin extends Plugin {
         const targetFile = await this.chooseNoteModal();
 
         if (!targetFile) {
-            new Notice('❌ Merge cancelled — no note selected.');
+            new Notice('Merge cancelled — no note selected.');
             return;
         }
 
         if (targetFile.path === sourceFile.path) {
-            new Notice('❌ Cannot merge a note with itself.');
+            new Notice('Cannot merge a note with itself.');
             return;
         }
 
@@ -87,9 +85,9 @@ export default class MergeAsAliasPlugin extends Plugin {
 
         try {
             // 1. Add alias to target note
-            await this.app.fileManager.processFrontMatter(targetFile, (fm: any) => {
+            await this.app.fileManager.processFrontMatter(targetFile, (fm: Record<string, unknown>) => {
                 if (!fm.aliases) fm.aliases = [];
-                if (!fm.aliases.includes(alias)) fm.aliases.push(alias);
+                if (!(fm.aliases as string[]).includes(alias)) (fm.aliases as string[]).push(alias);
             });
 
             // 2. Merge frontmatter
@@ -102,15 +100,15 @@ export default class MergeAsAliasPlugin extends Plugin {
             await this.updateAllLinks(sourceFile, targetFile);
 
             // 5. Delete source file
-            await this.app.vault.delete(sourceFile);
+            await this.app.fileManager.trashFile(sourceFile);
 
             // 6. Open the target note
             await this.app.workspace.getLeaf(false).openFile(targetFile);
 
-            new Notice(`✅ Successfully merged "${alias}" as alias into "${mainName}"`, 5000);
+            new Notice(`Successfully merged "${alias}" as alias into "${mainName}"`, 5000);
         } catch (err) {
             console.error('Merge error:', err);
-            new Notice('❌ Merge failed — check console (Ctrl+Shift+I)');
+            new Notice('Merge failed — check console (Ctrl+Shift+I)');
         }
     }
 
@@ -137,9 +135,9 @@ export default class MergeAsAliasPlugin extends Plugin {
 
     async mergeFrontmatter(targetFile: TFile, sourceFile: TFile) {
         const sourceCache = this.app.metadataCache.getFileCache(sourceFile);
-        const sourceFm = sourceCache?.frontmatter || {};
+        const sourceFm = (sourceCache?.frontmatter || {}) as Record<string, unknown>;
 
-        await this.app.fileManager.processFrontMatter(targetFile, (targetFm: any) => {
+        await this.app.fileManager.processFrontMatter(targetFile, (targetFm: Record<string, unknown>) => {
             for (const key in sourceFm) {
                 if (key === 'position') continue;
 
@@ -149,7 +147,8 @@ export default class MergeAsAliasPlugin extends Plugin {
                 if (Array.isArray(sourceValue)) {
                     if (this.settings.mergeListFields) {
                         if (!targetFm[key]) targetFm[key] = [];
-                        const combined = [...new Set([...(targetFm[key] || []), ...sourceValue])];
+                        const existing = (targetFm[key] as unknown[]) || [];
+                        const combined = [...new Set([...existing, ...(sourceValue as unknown[])])];
                         targetFm[key] = combined;
                     }
                 }
@@ -202,7 +201,7 @@ export default class MergeAsAliasPlugin extends Plugin {
     }
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as MergeAsAliasSettings;
     }
 
     async saveSettings() {
@@ -210,7 +209,6 @@ export default class MergeAsAliasPlugin extends Plugin {
     }
 
     onunload() {
-        console.log('Merge as Alias plugin unloaded.');
     }
 }
 
@@ -249,13 +247,15 @@ class MergeConfirmationModal extends Modal {
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
 
         const mergeButton = buttonContainer.createEl('button', { text: 'Merge', cls: 'mod-warning' });
-        mergeButton.addEventListener('click', async () => {
-            if (checkbox.checked) {
-                this.plugin.settings.showConfirmationDialog = false;
-                await this.plugin.saveSettings();
-            }
-            this.resolve(true);
-            this.close();
+        mergeButton.addEventListener('click', () => {
+            void (async () => {
+                if (checkbox.checked) {
+                    this.plugin.settings.showConfirmationDialog = false;
+                    await this.plugin.saveSettings();
+                }
+                this.resolve(true);
+                this.close();
+            })();
         });
 
         const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
@@ -277,7 +277,7 @@ class ReliableNoteSelectorModal extends FuzzySuggestModal<TFile> {
     constructor(app: App, callback: (file: TFile | null) => void) {
         super(app);
         this.callback = callback;
-        this.setPlaceholder("Choose the note to merge this file INTO...");
+        this.setPlaceholder("Choose the note to merge this file into...");
         this.setInstructions([
             { command: "↑↓", purpose: "navigate" },
             { command: "enter", purpose: "select" },
@@ -315,8 +315,6 @@ class MergeAsAliasSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Merge as Alias Settings' });
-
         new Setting(containerEl)
             .setName('Merge list fields')
             .setDesc('Combine arrays such as tags, aliases, categories, etc. (removes duplicates)')
@@ -329,7 +327,7 @@ class MergeAsAliasSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Concatenate text fields')
-            .setDesc('When both notes have the same text field (e.g. description, summary), combine them')
+            .setDesc('When both notes have the same text field (such as description or summary), combine them.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.concatenateTextFields)
                 .onChange(async (value) => {
