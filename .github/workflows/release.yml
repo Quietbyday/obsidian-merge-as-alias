@@ -45,6 +45,24 @@ jobs:
           VERSION=$(jq -r .version manifest.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Extract release notes from README
+        run: |
+          VERSION="${{ steps.manifest.outputs.version }}"
+          # Pull the changelog block for this version: from its "### <version>"
+          # heading up to the next "### " heading. The version boundary check
+          # avoids matching 0.5.1 inside 0.5.10.
+          awk -v ver="$VERSION" '
+            $0 ~ "^### " ver "([^0-9.]|$)" { found=1; next }
+            found && /^### / { exit }
+            found { print }
+          ' README.md > release-notes.md
+          # Fall back to a minimal note if nothing was found.
+          if [ ! -s release-notes.md ]; then
+            printf 'Release %s\n' "$VERSION" > release-notes.md
+          fi
+          echo "----- release notes -----"
+          cat release-notes.md
+
       - name: Upload files to release
         uses: softprops/action-gh-release@v2
         with:
@@ -53,5 +71,6 @@ jobs:
             manifest.json
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.manifest.outputs.version }}
+          body_path: release-notes.md
           draft: false
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}

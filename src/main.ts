@@ -299,7 +299,7 @@ class ReliableNoteSelectorModal extends FuzzySuggestModal<TFile> {
     }
 
     onClose() {
-        activeWindow.setTimeout(() => this.callback(null), 50);
+        window.setTimeout(() => this.callback(null), 50);
     }
 }
 
@@ -317,7 +317,7 @@ class MergeAsAliasSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Merge list fields')
-            .setDesc('Combine arrays such as tags, aliases, categories, etc. (removes duplicates)')
+            .setDesc('Combine arrays such as tags, aliases and categories, removing duplicates')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.mergeListFields)
                 .onChange(async (value) => {

@@ -43,9 +43,19 @@ Even when the separator option is disabled, merged content always starts on a ne
 3. Choose the target note you want to merge into.
 4. The plugin will handle the rest and open the target note when finished.
 
+## Planned
+
+- Adopt Obsidian's declarative settings API (`getSettingDefinitions()`) so settings appear in the settings search on Obsidian 1.13.0+. Deferred for now — the current settings tab works on all supported versions.
+
 ## Changelog
 
-### 0.5.1 (Current)
+### 0.5.2 (Current)
+- Raised minimum app version to 1.6.6 to match the `processFrontMatter` and `trashFile` APIs used
+- Popout-compatible timers now use `window.setTimeout()` (corrects the `activeWindow.setTimeout()` shipped in 0.5.1)
+- Added build provenance attestation to the release workflow
+- Release notes are now generated automatically from this changelog
+
+### 0.5.1
 - Raised minimum app version to 1.6.6 to match the `processFrontMatter` and `trashFile` APIs used
 - Used `activeWindow.setTimeout()` for popout window compatibility
 - Added build provenance attestation to the release workflow
