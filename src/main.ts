@@ -299,7 +299,7 @@ class ReliableNoteSelectorModal extends FuzzySuggestModal<TFile> {
     }
 
     onClose() {
-        setTimeout(() => this.callback(null), 50);
+        activeWindow.setTimeout(() => this.callback(null), 50);
     }
 }
 

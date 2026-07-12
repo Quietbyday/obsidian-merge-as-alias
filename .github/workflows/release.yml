@@ -9,6 +9,8 @@ on:
 permissions:
   contents: write
   actions: read
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -31,6 +33,11 @@ jobs:
 
       - name: Build plugin
         run: npm run build
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: main.js
 
       - name: Get version from manifest
         id: manifest

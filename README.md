@@ -45,7 +45,12 @@ Even when the separator option is disabled, merged content always starts on a ne
 
 ## Changelog
 
-### 0.5.0 (Current)
+### 0.5.1 (Current)
+- Raised minimum app version to 1.6.6 to match the `processFrontMatter` and `trashFile` APIs used
+- Used `activeWindow.setTimeout()` for popout window compatibility
+- Added build provenance attestation to the release workflow
+
+### 0.5.0
 - Resolved all issues flagged by the Obsidian community plugin validation bot
 - Fixed command ID to not duplicate the plugin ID
 - Replaced `vault.delete()` with `fileManager.trashFile()` to respect user trash preferences
